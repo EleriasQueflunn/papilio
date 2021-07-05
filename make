@@ -1,3 +1,4 @@
+mkdir obj
 cd obj
 gcc -c -Wall -Ofast ../src/md2.c ../src/md45.c ../src/sha01.c ../src/sha2.c ../src/sha3.c ../src/hash.c ../src/papilio.c
 cd ..
