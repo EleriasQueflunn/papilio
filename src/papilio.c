@@ -2,7 +2,7 @@
 --------------papilio.c--------------
 Author :      Elerias
 Date :        05.08.2021
-Version :     0.8
+Version :     0.9
 Description : Hash functions library
 -------------------------------------
 */
@@ -44,7 +44,7 @@ int helpCommand()
     printf("  papilio [help|-h|--help]                  Print this help message\n");
     printf("  papilio h <hashfunction> <message>...     Calculate the digest of messages\n");
     printf("  papilio hf <hashfunction> <filename>...   Calculate the digest of files\n");
-    printf("  papilio hc <hashfunction> <level> <digest>...     Hash crack : try preimage attacks by brute force\n");
+    printf("  papilio hc <hashfunction> <digest>...     Hash crack : try preimage attacks by brute force\n");
     printf("\n");
     printf("0 <= level <= 5\n");
     printf("0: < 1 s, 1: < 10 s, 2: < 100 s, ...\n");
@@ -153,35 +153,21 @@ int hcCommand(int argc, char* argv[])
         return 1;
     }
     
-    if (argc <= 2)
-    {
-        printf("papilio : hc : no input level\n");
-        return 1;
-    }
-    
-    int level;
-    sscanf(argv[2], "%i", &level);
-    if (level < 0 || level > 5)
-    {
-        printf("papilio : hc : incorrect level\n");
-        return 1;
-    }
-    
-    if (argc == 3)
+    if (argc == 2)
     {
         printf("papilio : hc : %s : no input digest\n", argv[1]);
         return 1;
     }
     
-    char* preimages = (char*) calloc( (size_t) (16 * (argc-3)), (size_t) 1);
-    int* correctPreimages = (int*) calloc( (size_t) (argc-3), sizeof(int));
-    unsigned char** digests = (unsigned char**) malloc( (size_t) (argc-3) * sizeof(unsigned char*));
-    for (int i=3 ; i<argc ; ++i)
+    char* preimages = (char*) calloc( (size_t) (16 * (argc-2)), (size_t) 1);
+    int* correctPreimages = (int*) calloc( (size_t) (argc-2), sizeof(int));
+    unsigned char** digests = (unsigned char**) malloc( (size_t) (argc-2) * sizeof(unsigned char*));
+    for (int i=2 ; i<argc ; ++i)
     {
-        digests[i-3] = (unsigned char*) malloc( (size_t) hf->digestSize);
+        digests[i-2] = (unsigned char*) malloc( (size_t) hf->digestSize);
         for (int j=0 ; j<hf->digestSize ; ++j)
         {
-            digests[i-3][j] = ( (argv[i][j*2] <= 57) ? ( (unsigned char) (argv[i][j*2]-48) )*16 : ( (unsigned char) (argv[i][j*2]-87) )*16 ) + ( (argv[i][j*2+1] <= 57) ? ( (unsigned char) (argv[i][j*2+1]-48) ) : ( (unsigned char) (argv[i][j*2+1]-87) ) );
+            digests[i-2][j] = ( (argv[i][j*2] <= 57) ? ( (unsigned char) (argv[i][j*2]-48) )*16 : ( (unsigned char) (argv[i][j*2]-87) )*16 ) + ( (argv[i][j*2+1] <= 57) ? ( (unsigned char) (argv[i][j*2+1]-48) ) : ( (unsigned char) (argv[i][j*2+1]-87) ) );
         }
     }
     
@@ -189,19 +175,18 @@ int hcCommand(int argc, char* argv[])
     unsigned char digest[64];
     HashCrackParameters P;
     P.hf = hf;
-    P.nWords = argc-3;
+    P.nWords = argc-2;
     P.preimages = preimages;
     P.correctPreimages = correctPreimages;
     P.digests = digests;
     P.success = 0;
-    P.level = level;
     P.buffer = buffer;
     P.digest = digest;
     P.verbose = 1;
     
     hashCrackBruteForce(&P);
     
-    for (int i=0 ; i<argc-3 ; i++)
+    for (int i=0 ; i<argc-2 ; i++)
     {
         printf("Preimage of ");
         for (unsigned int j=0 ; j < hf->digestSize ; j++)

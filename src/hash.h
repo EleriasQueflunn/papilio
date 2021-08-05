@@ -1,8 +1,8 @@
 /*
 --------------hash.h--------------
 Author :      Elerias
-Date :        20.04.2021
-Version :     1.0
+Date :        05.08.2021
+Version :     1.0.1
 Description : Hash function using
 ----------------------------------
 */
@@ -33,7 +33,6 @@ typedef struct
     int* correctPreimages;
     unsigned char** digests;
     int success;
-    int level;
     char* buffer;
     unsigned char* digest;
     int verbose;
