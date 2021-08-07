@@ -1,8 +1,8 @@
 /*
 --------------hash.c--------------
 Author :      Elerias
-Date :        05.08.2021
-Version :     0.9
+Date :        06.08.2021
+Version :     0.10
 Description : Hash function using
 ----------------------------------
 */
@@ -10,8 +10,8 @@ Description : Hash function using
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include "hash.h"
+#include "func.h"
 #include "md2.h"
 #include "md45.h"
 #include "sha01.h"
@@ -338,8 +338,7 @@ void hashFile(unsigned char* digest, const HashFunction* hf, FILE* file)
                 else if (P->verbose) \
                 { \
                     printf("Preimage of "); \
-                    for (unsigned int k=0 ; k < P->hf->digestSize ; k++) \
-                        printf("%02x", P->digest[k]); \
+                    printBytesInHexa(P->digest, P->hf->digestSize); \
                     printf(" :\nHexa : "); \
                     for (int k2=0 ; k2 < LEN ; k2++)  \
                         printf("%02x", P->buffer[k2]); \
@@ -495,10 +494,10 @@ int hashCrackBruteForce(HashCrackParameters* P)
     }
     
     int count[12] = {2,  2,        2,     2,         2,            2,            2,   2,       2,   2,       2,       2};
-    /*             char, rep_char, pchar, rep_pchar, rep_alphanum, rep_alphanum, min, rep_min, maj, rep_maj, figures, rep_figure*/
+    /*             char, rep_char, pchar, rep_pchar, rep_alphanum, rep_alphanum, min, rep_min, maj, rep_maj, digits, rep_digits*/
     int lengths[12] = {256, 256, 95, 95, 62, 62, 26, 26, 26, 26, 10, 10};
     char* alphs[12] = {alph_all, alph_all, alph_ascii, alph_ascii, alph_alpha, alph_alpha, alph_min, alph_min, alph_maj, alph_maj, alph_fig, alph_fig};
-    char* types[12] = {"characters", "characters", "ascii printable characters", "ascii printable characters", "alphanumeric characters", "alphanumeric characters", "lowercases", "lowercases", "uppercases" , "uppercases", "figures", "figures"};
+    char* types[12] = {"characters", "characters", "ascii printable characters", "ascii printable characters", "alphanumeric characters", "alphanumeric characters", "lowercases", "lowercases", "uppercases" , "uppercases", "digits", "digits"};
     
     unsigned long int mini;
     int index_mini=0;
