@@ -2,7 +2,7 @@
 --------------hash.c--------------
 Author :      Elerias
 Date :        12.08.2021
-Version :     0.12
+Version :     0.11
 Description : Hash function using
 ----------------------------------
 */
