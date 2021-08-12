@@ -2,7 +2,7 @@
 --------------papilio.c--------------
 Author :      Elerias
 Date :        12.08.2021
-Version :     0.12
+Version :     0.11
 Description : Hash functions library
 -------------------------------------
 */
@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 int helpCommand()
 // Print papilio help message
 {
-    printf("Papilio 0.12 (12.08.2021)\n");
+    printf("Papilio 0.11 (12.08.2021)\n");
     printf("Usage :\n");
     printf("  cmp <hashfunction> <message> <digest> Check the digest of a message\n");
     printf("  cmpf <hashfunction> <file> <digest>   Check the digest of a file\n");
