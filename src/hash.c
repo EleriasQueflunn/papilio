@@ -1,8 +1,8 @@
 /*
 --------------hash.c--------------
 Author :      Elerias
-Date :        06.08.2021
-Version :     0.10
+Date :        12.08.2021
+Version :     0.12
 Description : Hash function using
 ----------------------------------
 */
@@ -17,6 +17,8 @@ Description : Hash function using
 #include "sha01.h"
 #include "sha2.h"
 #include "sha3.h"
+#include "adler32.h"
+#include "crc.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -127,20 +129,24 @@ const char* passwords[1000] =
  "eric",        "darkside",    "classic",     "raptor",      "123456789q",  "hendrix",     "1982",        "wombat",      "avatar",      "alpha",
  "zxc123",      "crazy",       "hard",        "england",     "brazil",      "1978",        "01011980",    "wildcat",     "polina",      "freepass"};
 
-const char implementedHashFunctions[15][11] = {"md2", "md4", "md5", "sha0", "sha1", "sha224", "sha256", "sha384", "sha512", "sha512_224", "sha512_256", "sha3_224", "sha3_256", "sha3_384", "sha3_512"};
+#define N_IMP_HASH_FUNCTIONS 19
+const char* implementedHashFunctions[N_IMP_HASH_FUNCTIONS] = {"md2", "md4", "md5", "sha0", "sha1", "sha224", "sha256", "sha384", "sha512", "sha512_224", "sha512_256", "sha3_224", "sha3_256", "sha3_384", "sha3_512", "adler32", "crc32", "crc64-iso", "crc64-ecma"};
 static MD2Context md2c;
 static MD45Context md45c;
 static SHA01Context sha01c;
 static SHA2x32Context sha2x32c;
 static SHA2x64Context sha2x64c;
 static SHA3Context sha3c;
+static ADLER32Context adler32c;
+static CRC32Context crc32c;
+static CRC64Context crc64c;
 
 int setHashFunction(HashFunction* hf, const char* name)
 // Configure HashFunction parameters (name, blockSize ...), return 1 if name is not an implemented hash function else 0.
 {
     {
         int a=1;
-        for (int k=0 ; k<15 ; k++)
+        for (int k=0 ; k<N_IMP_HASH_FUNCTIONS ; ++k)
         {
             a = (a && strcmp(name, implementedHashFunctions[k]));
         }
@@ -280,6 +286,47 @@ int setHashFunction(HashFunction* hf, const char* name)
         hf->hashProcessLastBlock = &SHA3ProcessLastBlock;
         hf->hashGetDigest = &SHA3GetDigest;
     }
+    else if (strcmp(name, "adler32") == 0)
+    {
+        hf->blockSize = 0; // Because adler32 can process n-byte blocks
+        hf->digestSize = 4;
+        hf->context = &adler32c;
+        hf->hashInit = &ADLER32Init;
+        hf->hashProcessBlock = &ADLER32Process;
+        hf->hashProcessLastBlock = NULL;
+        hf->hashGetDigest = &ADLER32GetChecksum;
+    }
+    else if (strcmp(name, "crc32") == 0)
+    {
+        hf->blockSize = 0; // Because crc32 can process n-byte blocks
+        hf->digestSize = 4;
+        hf->context = &crc32c;
+        hf->hashInit = &CRC32Init;
+        hf->hashProcessBlock = &CRC32Process;
+        hf->hashProcessLastBlock = NULL;
+        hf->hashGetDigest = &CRC32GetChecksum;
+    }
+    else if (strcmp(name, "crc64-ecma") == 0)
+    {
+        hf->blockSize = 0; // Because crc64-ecma can process n-byte blocks
+        hf->digestSize = 8;
+        hf->context = &crc64c;
+        hf->hashInit = &CRC64EInit;
+        hf->hashProcessBlock = &CRC64EProcess;
+        hf->hashProcessLastBlock = NULL;
+        hf->hashGetDigest = &CRC64EGetChecksum;
+    }
+    else if (strcmp(name, "crc64-iso") == 0)
+    {
+        hf->blockSize = 0; // Because crc64-iso can process n-byte blocks
+        hf->digestSize = 8;
+        hf->context = &crc64c;
+        hf->hashInit = &CRC64IInit;
+        hf->hashProcessBlock = &CRC64IProcess;
+        hf->hashProcessLastBlock = NULL;
+        hf->hashGetDigest = &CRC64IGetChecksum;
+    }
+
     return 0;
 }
 
@@ -287,13 +334,22 @@ void hashText(unsigned char* digest, const HashFunction* hf, const char* msg, un
 // Hash a text.
 {
     hf->hashInit(hf->context);
-    unsigned int i=0;
-    while (i + hf->blockSize <= len)
+    
+    if (hf->blockSize)
     {
-        hf->hashProcessBlock(hf->context, msg+i);
-        i += hf->blockSize;
+        unsigned int i=0;
+        while (i + hf->blockSize <= len)
+        {
+            hf->hashProcessBlock(hf->context, msg+i);
+            i += hf->blockSize;
+        }
+        hf->hashProcessLastBlock(hf->context, msg+i, len-i);
     }
-    hf->hashProcessLastBlock(hf->context, msg+i, len-i);
+    else
+    {
+        hf->hashProcessBlock(hf->context, msg, len);
+    }
+    
     hf->hashGetDigest(digest, hf->context);
 }
 
@@ -302,13 +358,24 @@ void hashFile(unsigned char* digest, const HashFunction* hf, FILE* file)
 {
     hf->hashInit(hf->context);
     unsigned char buffer[1024];
-    unsigned int s = (unsigned int) fread(buffer, 1, hf->blockSize, file);
-    while (s == hf->blockSize)
+    
+    if (hf->blockSize)
     {
-        hf->hashProcessBlock(hf->context, buffer);
-        s = (unsigned int) fread(buffer, 1, hf->blockSize, file);
+        unsigned int s = (unsigned int) fread(buffer, 1, hf->blockSize, file);
+        while (s == hf->blockSize)
+        {
+            hf->hashProcessBlock(hf->context, buffer);
+            s = (unsigned int) fread(buffer, 1, hf->blockSize, file);
+        }
+        hf->hashProcessLastBlock(hf->context, buffer, s);
     }
-    hf->hashProcessLastBlock(hf->context, buffer, s);
+    else
+    {
+        unsigned int s;
+        while ( (s = (unsigned int) fread(buffer, 1, 1024, file)) )
+            hf->hashProcessBlock(hf->context, buffer, s);
+    }
+    
     hf->hashGetDigest(digest, hf->context);
 }
 
@@ -316,7 +383,10 @@ void hashFile(unsigned char* digest, const HashFunction* hf, FILE* file)
     { \
         int b; \
         P->hf->hashInit(P->hf->context); \
-        P->hf->hashProcessLastBlock(P->hf->context, P->buffer, LEN); \
+        if (P->hf->blockSize) \
+            P->hf->hashProcessLastBlock(P->hf->context, P->buffer, LEN); \
+        else \
+            P->hf->hashProcessBlock(P->hf->context, P->buffer, LEN); \
         P->hf->hashGetDigest(P->digest, P->hf->context); \
         for (int try_j=0 ; try_j<P->nWords ; ++try_j) \
         { \

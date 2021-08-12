@@ -1,8 +1,8 @@
 /*
 --------------papilio.c--------------
 Author :      Elerias
-Date :        06.08.2021
-Version :     0.10
+Date :        12.08.2021
+Version :     0.12
 Description : Hash functions library
 -------------------------------------
 */
@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 int helpCommand()
 // Print papilio help message
 {
-    printf("Papilio 0.10 (06.08.2021)\n");
+    printf("Papilio 0.12 (12.08.2021)\n");
     printf("Usage :\n");
     printf("  cmp <hashfunction> <message> <digest> Check the digest of a message\n");
     printf("  cmpf <hashfunction> <file> <digest>   Check the digest of a file\n");
@@ -53,7 +53,7 @@ int helpCommand()
     printf("  hf <hashfunction> <filename>...       Calculate the digest of files\n");
     printf("  hc <hashfunction> <digest>...         Hash crack : try preimage attacks by brute force\n");
     printf("\n");
-    printf("Supported hash functions : md2, md4, md5, sha0, sha1, sha256, sha512, sha224, sha384, sha512_224, sha512_256, sha3_256, sha3_512, sha3_224, sha3_384\n");
+    printf("Supported hash functions : md2, md4, md5, sha0, sha1, sha256, sha512, sha224, sha384, sha512_224, sha512_256, sha3_256, sha3_512, sha3_224, sha3_384, adler32, crc32 (IEEE), crc64-iso, crc64-ecma\n");
     return 0;
 }
 
