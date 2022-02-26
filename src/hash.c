@@ -1,8 +1,8 @@
 /*
 --------------hash.c--------------
 Author :      Elerias
-Date :        12.08.2021
-Version :     0.11
+Date :        26.02.2022
+Version :     0.12
 Description : Hash function using
 ----------------------------------
 */
@@ -379,45 +379,46 @@ void hashFile(unsigned char* digest, const HashFunction* hf, FILE* file)
     hf->hashGetDigest(digest, hf->context);
 }
 
-#define TRY(P, LEN) \
-    { \
-        int b; \
-        P->hf->hashInit(P->hf->context); \
-        if (P->hf->blockSize) \
-            P->hf->hashProcessLastBlock(P->hf->context, P->buffer, LEN); \
-        else \
-            P->hf->hashProcessBlock(P->hf->context, P->buffer, LEN); \
-        P->hf->hashGetDigest(P->digest, P->hf->context); \
-        for (int try_j=0 ; try_j<P->nWords ; ++try_j) \
-        { \
-            if (P->correctPreimages[try_j]) \
-                continue; \
-            b = 1; \
-            for (int k=0 ; k < P->hf->digestSize ; ++k) \
-                b &= (P->digests[try_j][k] == P->digest[k]); \
-            if (b) \
-            { \
-                for (int k=0 ; k<16 ; ++k) \
-                    P->preimages[16*try_j+k] = P->buffer[k]; \
-                if (LEN != 0) \
-                    P->correctPreimages[try_j] = LEN; \
-                else \
-                    P->correctPreimages[try_j] = -1; \
-                if (++(P->success) == P->nWords) \
-                    return 1; \
-                else if (P->verbose) \
-                { \
-                    printf("Preimage of "); \
-                    printBytesInHexa(P->digest, P->hf->digestSize); \
-                    printf(" :\nHexa : "); \
-                    for (int k2=0 ; k2 < LEN ; k2++)  \
-                        printf("%02x", P->buffer[k2]); \
-                    printf("\nAscii : "); \
-                    printf("%s\n", P->buffer); \
-                } \
-            } \
-        } \
+static int try(HashCrackParameters* P, int len)
+{
+    int b;
+    P->hf->hashInit(P->hf->context);
+    if (P->hf->blockSize)
+        P->hf->hashProcessLastBlock(P->hf->context, P->buffer, len);
+    else
+        P->hf->hashProcessBlock(P->hf->context, P->buffer, len);
+    P->hf->hashGetDigest(P->digest, P->hf->context);
+    for (int try_j=0 ; try_j<P->nWords ; ++try_j)
+    {
+        if (P->correctPreimages[try_j])
+            continue;
+        b = 1;
+        for (int k=0 ; k < P->hf->digestSize ; ++k)
+            b &= (P->digests[try_j][k] == P->digest[k]);
+        if (b)
+        {
+            for (int k=0 ; k<16 ; ++k)
+                P->preimages[16*try_j+k] = P->buffer[k];
+            if (len != 0)
+                P->correctPreimages[try_j] = len;
+            else
+                P->correctPreimages[try_j] = -1;
+            if (++(P->success) == P->nWords)
+                return 1;
+            else if (P->verbose)
+            {
+                printf("Preimage of ");
+                printBytesInHexa(P->digest, P->hf->digestSize);
+                printf(" :\nHexa : ");
+                for (int k2=0 ; k2 < len ; k2++)
+                    printf("%02x", P->buffer[k2]);
+                printf("\nAscii : ");
+                printf("%s\n", P->buffer);
+            }
+        }
     }
+    return 0;
+}
 
 #define VPRINTF(S) if (P->verbose) printf(S);
 
@@ -426,7 +427,9 @@ static int testPasswords(HashCrackParameters* P)
     for (int i=0 ; i<1000 ; i++)
     {
         for (int j=0 ; j<11 ; j++) P->buffer[j] = passwords[i][j];
-        TRY(P, strlen(P->buffer))
+        if ( try(P, strlen(P->buffer)) )
+            return 1;
+        
     }
     return 0;
 }
@@ -445,11 +448,13 @@ static int testkuplets(const char* alph, int alphLen, int k, int currentLen, Has
             P->buffer[currentLen] = alph[i];
             if (currentLen == k - 1)
             {
-                TRY(P, k)
+                if ( try(P, k) )
+                    return 1;
             }
             else
             {
-                if (testkuplets(alph, alphLen, k, currentLen+1, P)) return 1;
+                if (testkuplets(alph, alphLen, k, currentLen+1, P)) 
+                    return 1;
             }
         }
         P->buffer[currentLen] = 0;
@@ -474,7 +479,8 @@ static int testRepetitionskuplets(const char* alph, int alphLen, int k, int curr
                 for (int j=0 ; j < maxRepetitions ; j++)
                 {
                     for (int j2=0 ; j2<k ; j2++) P->buffer[j*k+j2] = P->buffer[j2];
-                    TRY(P, (j+1)*k)
+                    if ( try(P, (j+1)*k) )
+                        return 1;
                 }
                 for (int j=k ; j<16 ; j++) P->buffer[j] = 0;
             }
@@ -497,13 +503,15 @@ static int testKeyboardSequences(const char* alph, int alphLen, HashCrackParamet
         for (j=i ; j<MIN(i+16, alphLen) ; j++)
         {
             P->buffer[j-i] = alph[j];
-            TRY(P, j-i+1);
+            if ( try(P, j-i+1) )
+                return 1;
         }
         for (j=0 ; j<16 ; j++) P->buffer[j] = 0;
         for (j=i ; j>MAX(i-16, 0) ; j--)
         {
             P->buffer[i-j] = alph[j];
-            TRY(P, i-j+1);
+            if ( try(P, i-j+1) )
+                return 1;
         }
     }
     return 0;
@@ -519,7 +527,8 @@ int hashCrackBruteForce(HashCrackParameters* P)
     VPRINTF("Type Ctrl+c at any time to stop\n")
     
     VPRINTF("1. Null string (1)\n")
-    TRY(P, 0)
+    if ( try(P, 0) )
+        return 1;
 
     VPRINTF("2. Common passwords (1000)\n")
     if (testPasswords(P)) return 1;
